@@ -1,0 +1,61 @@
+# ==============================================================================
+# DINOv2-TVPR Configuration File (Thuần Tiếng Việt - 100% Vietnamese)
+# Meta DINOv2 (Pretrained Foundation Vision) + VinAI PhoBERT v2 (Vietnamese Text)
+# ==============================================================================
+
+model:
+  arch: "dinov2"                          
+  dinov2_model_name: "facebook/dinov2-small" # Pretrained DINOv2 của Meta AI (384-D, 21M params)
+  freeze_dinov2: true                     # Đóng băng các tầng đầu của DINOv2 để tiết kiệm VRAM và giữ đặc trưng chuẩn
+  tune_dinov2_layers: 2                   # Fine-tune 2 tầng Transformer cuối của DINOv2 để thích ứng sâu với trang phục người
+  
+  # --- Mô hình Ngôn ngữ Văn bản (PhoBERT Tiếng Việt) ---
+  bert_model_name: "vinai/phobert-base-v2" # PhoBERT v2 chuyên sâu tiếng Việt của VinAI
+  max_text_len: 64                        # Độ dài tối đa của câu mô tả tiếng Việt (64 tokens)
+
+  # --- Cấu hình Khung hình Video ---
+  img_size: 224                           # Kích thước khung hình chuẩn hóa 224x224 cho DINOv2
+  visual_frames: 4                        # Số khung hình lấy mẫu cho mỗi video
+  motion_frames: 16                       # Giữ tham số tương thích ngược
+  common_dim: 256                         # Chiều không gian chiếu chung Common Space (256 chiều)
+  
+  # --- Cờ Ablation tương thích ngược ---
+  ablation:
+    use_visual: true
+    use_motion: false                     # DINOv2 Temporal Attention thay thế S3D
+    use_common: true                      # Symmetric InfoNCE Contrastive Loss
+    use_d2: false                         # Tắt D2 để chống hoàn toàn hiện tượng sụp đổ biểu diễn (Collapse)
+
+data:
+  dataset_name: "data"                    # Khớp với file data.json trong thư mục captions
+  data_root: "auto"                       # "auto": Tự động nhận diện thư mục dataset/ hoặc data/
+  batch_size: 32                          # Kích thước mini-batch (nâng lên 32 vì DINOv2-small rất nhẹ)
+  num_workers: 2                          # Số tiến trình CPU chạy song song nạp video
+  pin_memory: true                        # Khóa RAM giúp chuyển dữ liệu lên VRAM nhanh hơn
+  drop_last: true                         # Bỏ qua batch cuối nếu không đủ kích thước
+
+train:
+  seed: 42                                # Hạt giống ngẫu nhiên cố định để kết quả tái lập 100%
+  device: "cuda"                          # "cuda" cho GPU NVIDIA (hoặc "cpu" nếu không có GPU)
+  epochs: 30                              # Tổng số chu kỳ huấn luyện qua toàn bộ dữ liệu
+  warmup_epochs: 2                        # 2 epoch đầu tăng dần learning rate từ tốn
+  
+  # --- Tốc độ học phân tầng (Differential Learning Rates) ---
+  lr_dino: 0.00001                        # 1e-5: Tốc độ học nhẹ nhàng cho 2 tầng cuối của DINOv2
+  lr_phobert: 0.00002                     # 2e-5: Tốc độ học bảo toàn tri thức tiếng Việt cho PhoBERT v2
+  lr_head: 0.0001                         # 1e-4: Tốc độ học cho Temporal Aggregator và Projector
+  lr: 0.0001                              # Tốc độ học cơ sở
+  min_lr: 0.000001                        # Tốc độ học tối thiểu ở cuối quá trình huấn luyện
+  
+  weight_decay: 0.0001                    # Hệ số suy giảm trọng số chống quá khớp
+  grad_clip_norm: 5.0                     # Ngưỡng cắt chuẩn Gradient chống bùng nổ đạo hàm
+  grad_accum_steps: 1                     # Tích lũy gradient (1: cập nhật mỗi batch)
+  use_amp: true                           # Bật FP16 Mixed Precision tăng tốc x2 và tiết kiệm VRAM
+  resume: null                            # null: Huấn luyện mới từ đầu; hoặc đường dẫn file .pth
+  save_dir: "checkpoints"                 # Thư mục lưu checkpoint (best.pth, latest.pth)
+  log_interval: 2                         # In tiến trình huấn luyện sau mỗi 10 mini-batch
+  eval_interval: 1                        # Đánh giá trên tập Validation sau mỗi 1 epoch
+
+eval:
+  batch_size: 32                          # Kích thước batch khi đánh giá trích xuất đặc trưng
+  ranks: [1, 5, 10, 50]                   # Các mốc xếp hạng Top-K (Rank@1, Rank@5, Rank@10, Rank@50)

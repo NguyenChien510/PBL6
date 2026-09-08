@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Agents & IDE config
+.agents
+.vscode
+.idea
+.gemini
+
+# Dataset & Big Data (Mount via volume instead of baking into image)
+dataset/
+data/
+pbl6.ipynb
+
+# Checkpoints (Mount via volume to keep Docker image lightweight)
+src/checkpoints/*.pth
+checkpoints/*.pth
+
+# Outputs & Reports
+src/outputs/*
+outputs/*
+src/reports/*
+reports/*
+
+# Python cache & artifacts
+__pycache__
+*/__pycache__
+*/*/__pycache__
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache
+.coverage
+htmlcov/
+.mypy_cache
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Media & Temp files
+*.mp4
+*.avi
+*.mkv
+*.log
+*.tmp

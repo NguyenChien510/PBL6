@@ -1,0 +1,73 @@
+services:
+  # ==============================================================================
+  # Dịch vụ chính: MFGF TVPR Web UI & Tracking Pipeline (Hỗ trợ GPU NVIDIA)
+  # ==============================================================================
+  tvpr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tvpr-mfgf:latest
+    container_name: tvpr_app
+    restart: unless-stopped
+    ports:
+      - "7860:7860" # Gradio Web App
+      - "8000:8000" # API (nếu cần mở rộng)
+    volumes:
+      # Dataset (Mount thư mục dataset từ host, chế độ read-only)
+      - ./dataset:/app/dataset:ro
+      # Checkpoints (Mount để nạp và lưu các file .pth)
+      - ./src/checkpoints:/app/src/checkpoints
+      # Thư mục kết quả xuất video
+      - ./src/outputs:/app/src/outputs
+      - ./src/reports:/app/src/reports
+      # Cấu hình YAML (cho phép chỉnh sửa trực tiếp không cần build lại image)
+      - ./src/configs:/app/src/configs
+      # Persistent cache cho HuggingFace và Torch Hub
+      - tvpr_hf_cache:/app/.cache/huggingface
+      - tvpr_torch_cache:/app/.cache/torch
+    environment:
+      - PYTHONUNBUFFERED=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+    # Tăng tốc GPU qua NVIDIA Container Toolkit
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Mặc định khởi động Gradio Web App
+    command: web
+
+  # ==============================================================================
+  # Dịch vụ phụ trợ cho máy chỉ có CPU (không có GPU NVIDIA)
+  # Khởi động: docker compose run --rm tvpr-cpu
+  # ==============================================================================
+  tvpr-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tvpr-mfgf:latest
+    container_name: tvpr_cpu_app
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./dataset:/app/dataset:ro
+      - ./src/checkpoints:/app/src/checkpoints
+      - ./src/outputs:/app/src/outputs
+      - ./src/reports:/app/src/reports
+      - ./src/configs:/app/src/configs
+      - tvpr_hf_cache:/app/.cache/huggingface
+      - tvpr_torch_cache:/app/.cache/torch
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CUDA_VISIBLE_DEVICES=""
+    command: web
+    profiles: ["cpu"]
+
+volumes:
+  tvpr_hf_cache:
+    name: tvpr_hf_cache
+  tvpr_torch_cache:
+    name: tvpr_torch_cache
